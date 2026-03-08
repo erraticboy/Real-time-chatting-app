@@ -20,6 +20,35 @@ if (isAndroid) {
     meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
 }
 
+// --- NEW: Swipe Gestures for Android Sidebar ---
+if (isAndroid) {
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    function handleTouchStart(e) {
+        touchStartX = e.changedTouches[0].screenX;
+    }
+
+    function handleTouchEnd(e) {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+    }
+
+    function handleSwipe() {
+        const sidebar = document.querySelector('.sidebar');
+        if (touchEndX - touchStartX > 50) {
+            // Swipe right: show sidebar
+            sidebar.classList.remove('mobile-hidden');
+        } else if (touchStartX - touchEndX > 50) {
+            // Swipe left: hide sidebar
+            sidebar.classList.add('mobile-hidden');
+        }
+    }
+
+    document.addEventListener('touchstart', handleTouchStart, false);
+    document.addEventListener('touchend', handleTouchEnd, false);
+}
+
 // --- Connect to Chat Service (on the same server) ---
 // Moved to top to ensure it's defined before use
 const socket = io({ autoConnect: false });

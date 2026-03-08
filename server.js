@@ -32,8 +32,12 @@ app.use((req, res, next) => {
 // Serve Frontend Static Files
 app.use(express.static(path.join(__dirname, "Frontend")));
 
-/*
-// --- AUTHENTICATION --- (Commented out)
+// Serve index.html for root path
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "Frontend", "index.html"));
+});
+
+// --- AUTHENTICATION ---
 const usersFilePath = path.join(__dirname, "users.json");
 let users = [];
 
@@ -61,7 +65,6 @@ app.post("/login", async (req, res) => {
     }
     res.json({ message: "Logged in", username });
 });
-*/
 
 // --- AI CHAT ---
 const apiKey = process.env.GEMINI_API_KEY;

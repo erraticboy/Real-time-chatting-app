@@ -74,7 +74,7 @@ socket.on("message", (data) => {
         renderStory(data.user, data.file, data.fileType);
     } else {
         console.log("💬 Adding message to chat:", data.text);
-        addMessage(data.text, data.user === currentUser ? 'sent' : 'received', data.file, data.fileType, data.id);
+        addMessage(data.text, data.user === currentUser ? 'sent' : 'received', data.file, data.fileType, data.id, data.fileSize);
     }
 });
 
@@ -83,7 +83,7 @@ socket.on("previousMessages", (msgs) => {
     messagesDiv.innerHTML = ''; // Clear before loading
     msgs.forEach(msg => {
         if (!msg.isStory) {
-            addMessage(msg.text, msg.user === currentUser ? 'sent' : 'received', msg.file, msg.fileType, msg.id);
+            addMessage(msg.text, msg.user === currentUser ? 'sent' : 'received', msg.file, msg.fileType, msg.id, msg.fileSize);
         }
     });
 });
@@ -602,8 +602,15 @@ function switchRoom(room) {
     }
 }
 
+// Global story storage
+let allStories = [];
+
 function renderStory(user, fileData, fileType) {
     if (!fileType) return; // Safety check
+
+    // Add to global stories array
+    const storyData = { user, fileData, fileType, timestamp: Date.now() };
+    allStories.push(storyData);
 
     const storyItem = document.createElement('div');
     storyItem.style.cssText = 'display: inline-block; margin-right: 10px; text-align: center; cursor: pointer; flex-shrink: 0;';
@@ -625,18 +632,94 @@ function renderStory(user, fileData, fileType) {
     storyItem.appendChild(name);
     
     storyItem.onclick = () => {
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center;';
-        let content = fileType.startsWith('video') ? document.createElement('video') : document.createElement('img');
-        content.src = fileData;
-        if(fileType.startsWith('video')) { content.controls = true; content.autoplay = true; }
-        content.style.maxHeight = '90%'; content.style.maxWidth = '90%';
-        overlay.appendChild(content);
-        overlay.onclick = () => document.body.removeChild(overlay);
-        document.body.appendChild(overlay);
+        openStoryViewer(storyData);
     };
     storyContainer.appendChild(storyItem);
-    setTimeout(() => { if(storyItem.parentNode) storyItem.parentNode.removeChild(storyItem); }, 300000); // Stories last 5 mins
+    
+    // Auto-remove story after 5 minutes
+    setTimeout(() => { 
+        if(storyItem.parentNode) storyItem.parentNode.removeChild(storyItem);
+        // Remove from global array
+        allStories = allStories.filter(s => s !== storyData);
+    }, 300000); // 5 minutes
+}
+
+function openStoryViewer(currentStory) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center;';
+    
+    const viewer = document.createElement('div');
+    viewer.style.cssText = 'position: relative; max-width: 90%; max-height: 90%;';
+    
+    // Navigation buttons
+    const prevBtn = document.createElement('button');
+    prevBtn.innerText = '⬅️';
+    prevBtn.style.cssText = 'position: absolute; left: -60px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 20px;';
+    
+    const nextBtn = document.createElement('button');
+    nextBtn.innerText = '➡️';
+    nextBtn.style.cssText = 'position: absolute; right: -60px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 20px;';
+    
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.innerText = '✕';
+    closeBtn.style.cssText = 'position: absolute; top: -50px; right: 0; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;';
+    closeBtn.onclick = () => document.body.removeChild(overlay);
+    
+    // User info
+    const userInfo = document.createElement('div');
+    userInfo.style.cssText = 'position: absolute; top: -50px; left: 0; color: white; font-weight: 500;';
+    userInfo.innerText = currentStory.user;
+    
+    let currentIndex = allStories.indexOf(currentStory);
+    
+    function showStory(index) {
+        if (index < 0 || index >= allStories.length) return;
+        
+        currentIndex = index;
+        const story = allStories[index];
+        
+        // Clear previous content
+        const existingContent = viewer.querySelector('img, video');
+        if (existingContent) existingContent.remove();
+        
+        userInfo.innerText = story.user;
+        
+        let content = story.fileType.startsWith('video') ? document.createElement('video') : document.createElement('img');
+        content.src = story.fileData;
+        if(story.fileType.startsWith('video')) { 
+            content.controls = true; 
+            content.autoplay = true; 
+        }
+        content.style.maxHeight = '80vh'; 
+        content.style.maxWidth = '80vw';
+        content.style.borderRadius = '8px';
+        
+        viewer.insertBefore(content, closeBtn);
+        
+        // Update navigation buttons
+        prevBtn.style.opacity = index > 0 ? '1' : '0.3';
+        nextBtn.style.opacity = index < allStories.length - 1 ? '1' : '0.3';
+    }
+    
+    prevBtn.onclick = () => showStory(currentIndex - 1);
+    nextBtn.onclick = () => showStory(currentIndex + 1);
+    
+    // Add click outside to close
+    overlay.onclick = (e) => {
+        if (e.target === overlay) {
+            document.body.removeChild(overlay);
+        }
+    };
+    
+    viewer.appendChild(prevBtn);
+    viewer.appendChild(nextBtn);
+    viewer.appendChild(closeBtn);
+    viewer.appendChild(userInfo);
+    overlay.appendChild(viewer);
+    document.body.appendChild(overlay);
+    
+    showStory(currentIndex);
 }
 
 // -------------------------------
@@ -645,12 +728,24 @@ function renderStory(user, fileData, fileType) {
 const fileInput = document.createElement('input');
 fileInput.type = 'file';
 fileInput.style.display = 'none';
-fileInput.accept = 'image/*,video/*';
+fileInput.accept = 'image/*,video/*,.pdf,.doc,.docx,.txt,.zip,.rar,.ppt,.pptx,.xls,.xlsx';
+
+const docInput = document.createElement('input');
+docInput.type = 'file';
+docInput.style.display = 'none';
+docInput.accept = '.pdf,.doc,.docx,.txt,.zip,.rar,.ppt,.pptx,.xls,.xlsx';
 
 const attachBtn = document.createElement('button');
 attachBtn.innerText = '📎';
 attachBtn.className = 'icon-btn';
+attachBtn.title = 'Attach file (images, videos, documents)';
 attachBtn.onclick = () => fileInput.click();
+
+const docBtn = document.createElement('button');
+docBtn.innerText = '📄';
+docBtn.className = 'icon-btn';
+docBtn.title = 'Attach document';
+docBtn.onclick = () => docInput.click();
 
 // Create Input Bar Container
 const inputBar = document.createElement('div');
@@ -669,6 +764,7 @@ if (isAndroid) {
     buttonRow.style.marginTop = '8px';
     
     buttonRow.appendChild(attachBtn);
+    buttonRow.appendChild(docBtn);
     buttonRow.appendChild(botBtn);
     buttonRow.appendChild(sendBtn);
     
@@ -677,23 +773,35 @@ if (isAndroid) {
 } else {
     // Horizontal layout for desktop
     inputBar.appendChild(attachBtn);
+    inputBar.appendChild(docBtn);
     inputBar.appendChild(messageInput);
     inputBar.appendChild(botBtn);
     inputBar.appendChild(sendBtn);
 }
 
 inputBar.appendChild(fileInput);
+inputBar.appendChild(docInput);
 
 fileInput.addEventListener('change', function() {
     const file = this.files[0];
     if (!file) return;
     
-    // Limit to 2MB for base64 socket transfer to ensure stability
-    if (file.size > 2 * 1024 * 1024) {
-        alert("File too large (Max 2MB)");
+    // Different size limits for different file types
+    const isDocument = /\.(pdf|doc|docx|txt|ppt|pptx|xls|xlsx|zip|rar)$/i.test(file.name);
+    const maxSize = isDocument ? 10 * 1024 * 1024 : 2 * 1024 * 1024; // 10MB for docs, 2MB for media
+    
+    if (file.size > maxSize) {
+        const sizeText = isDocument ? "10MB" : "2MB";
+        alert(`File too large (Max ${sizeText})`);
         this.value = "";
         return;
     }
+
+    // Show upload progress
+    const progressDiv = document.createElement('div');
+    progressDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 8px; z-index: 1001;';
+    progressDiv.innerText = 'Uploading...';
+    document.body.appendChild(progressDiv);
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -702,15 +810,89 @@ fileInput.addEventListener('change', function() {
             user: currentUser,
             text: file.name,
             file: e.target.result,
-            fileType: file.type
+            fileType: file.type || 'application/octet-stream',
+            fileName: file.name,
+            fileSize: file.size
         };
-        console.log("📎 Sending file message:", { room: currentRoom, user: currentUser, fileName: file.name, fileType: file.type });
+        console.log("📎 Sending file message:", { 
+            room: currentRoom, 
+            user: currentUser, 
+            fileName: file.name, 
+            fileType: file.type,
+            fileSize: file.size 
+        });
         socket.emit("message", messageData);
+        
+        // Remove progress indicator
+        setTimeout(() => {
+            if (progressDiv.parentNode) {
+                progressDiv.parentNode.removeChild(progressDiv);
+            }
+        }, 1000);
+    };
+    reader.onerror = () => {
+        alert('Error reading file');
+        if (progressDiv.parentNode) {
+            progressDiv.parentNode.removeChild(progressDiv);
+        }
     };
     reader.readAsDataURL(file);
     this.value = "";
 });
-// -------------------------------
+
+docInput.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    
+    // 10MB limit for documents
+    if (file.size > 10 * 1024 * 1024) {
+        alert("Document too large (Max 10MB)");
+        this.value = "";
+        return;
+    }
+
+    // Show upload progress
+    const progressDiv = document.createElement('div');
+    progressDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 8px; z-index: 1001;';
+    progressDiv.innerText = 'Uploading document...';
+    document.body.appendChild(progressDiv);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const messageData = {
+            room: currentRoom,
+            user: currentUser,
+            text: file.name,
+            file: e.target.result,
+            fileType: file.type || 'application/octet-stream',
+            fileName: file.name,
+            fileSize: file.size
+        };
+        console.log("📄 Sending document:", { 
+            room: currentRoom, 
+            user: currentUser, 
+            fileName: file.name, 
+            fileType: file.type,
+            fileSize: file.size 
+        });
+        socket.emit("message", messageData);
+        
+        // Remove progress indicator
+        setTimeout(() => {
+            if (progressDiv.parentNode) {
+                progressDiv.parentNode.removeChild(progressDiv);
+            }
+        }, 1000);
+    };
+    reader.onerror = () => {
+        alert('Error reading document');
+        if (progressDiv.parentNode) {
+            progressDiv.parentNode.removeChild(progressDiv);
+        }
+    };
+    reader.readAsDataURL(file);
+    this.value = "";
+});
 
 async function login() {
     const username = usernameInput.value;
@@ -852,7 +1034,7 @@ async function sendMessage() {
     }
 }
 
-function addMessage(text, type, fileData = null, fileType = null, id = null) {
+function addMessage(text, type, fileData = null, fileType = null, id = null, fileSize = null) {
     const msgDiv = document.createElement('div');
     msgDiv.classList.add('message', type);
     
@@ -867,6 +1049,8 @@ function addMessage(text, type, fileData = null, fileType = null, id = null) {
             img.src = fileData;
             img.style.maxWidth = '200px';
             img.style.borderRadius = '8px';
+            img.style.cursor = 'pointer';
+            img.onclick = () => window.open(fileData, '_blank');
             mediaContainer.appendChild(img);
         } else if (fileType && fileType.startsWith('video/')) {
             const video = document.createElement('video');
@@ -875,6 +1059,69 @@ function addMessage(text, type, fileData = null, fileType = null, id = null) {
             video.style.maxWidth = '200px';
             video.style.borderRadius = '8px';
             mediaContainer.appendChild(video);
+        } else if (fileType && (fileType.includes('pdf') || fileType.includes('document') || fileType.includes('text'))) {
+            // Document file
+            const docContainer = document.createElement('div');
+            docContainer.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;';
+            
+            const docIcon = document.createElement('div');
+            docIcon.style.cssText = 'font-size: 24px;';
+            
+            // Set appropriate icon based on file type
+            if (fileType.includes('pdf')) {
+                docIcon.innerText = '📄';
+            } else if (fileType.includes('word') || fileType.includes('document')) {
+                docIcon.innerText = '📝';
+            } else if (fileType.includes('text')) {
+                docIcon.innerText = '📃';
+            } else if (fileType.includes('spreadsheet') || fileType.includes('excel')) {
+                docIcon.innerText = '📊';
+            } else if (fileType.includes('presentation') || fileType.includes('powerpoint')) {
+                docIcon.innerText = '📽️';
+            } else if (fileType.includes('zip') || fileType.includes('rar')) {
+                docIcon.innerText = '📦';
+            } else {
+                docIcon.innerText = '📎';
+            }
+            
+            const docInfo = document.createElement('div');
+            docInfo.style.cssText = 'flex: 1;';
+            
+            const docName = document.createElement('div');
+            docName.style.cssText = 'font-weight: 500; font-size: 14px; color: inherit;';
+            docName.innerText = text || 'Document';
+            
+            const docSize = document.createElement('div');
+            docSize.style.cssText = 'font-size: 12px; opacity: 0.7;';
+            if (fileSize) {
+                const sizeKB = Math.round(fileSize / 1024);
+                docSize.innerText = `${sizeKB} KB`;
+            } else {
+                docSize.innerText = 'File';
+            }
+            
+            docInfo.appendChild(docName);
+            docInfo.appendChild(docSize);
+            
+            // Download button
+            const downloadBtn = document.createElement('button');
+            downloadBtn.innerText = '⬇️';
+            downloadBtn.style.cssText = 'background: none; border: none; cursor: pointer; font-size: 16px; padding: 5px; border-radius: 4px;';
+            downloadBtn.title = 'Download file';
+            downloadBtn.onclick = (e) => {
+                e.stopPropagation();
+                const link = document.createElement('a');
+                link.href = fileData;
+                link.download = text || 'document';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+            
+            docContainer.appendChild(docIcon);
+            docContainer.appendChild(docInfo);
+            docContainer.appendChild(downloadBtn);
+            mediaContainer.appendChild(docContainer);
         }
         msgDiv.appendChild(mediaContainer);
     } else {

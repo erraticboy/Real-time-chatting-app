@@ -52,13 +52,48 @@ if (isAndroid) {
 // --- Connect to Chat Service (on the same server) ---
 // Moved to top to ensure it's defined before use
 const socket = io({ autoConnect: false });
+
 socket.on("connect", () => {
-    console.log("Connected to Chat Server");
+    console.log("✅ Connected to Chat Server, Socket ID:", socket.id);
     socket.emit("joinRoom", currentRoom);
 });
 
+socket.on("disconnect", () => {
+    console.log("❌ Disconnected from Chat Server");
+});
+
 socket.on("connect_error", (err) => {
-    console.error("Socket connection error:", err);
+    console.error("❌ Socket connection error:", err);
+});
+
+// Message listener - MUST be set up BEFORE login
+socket.on("message", (data) => {
+    console.log("📨 Message received from server:", data);
+    if (data.isStory) {
+        console.log("📸 Rendering story...");
+        renderStory(data.user, data.file, data.fileType);
+    } else {
+        console.log("💬 Adding message to chat:", data.text);
+        addMessage(data.text, data.user === currentUser ? 'sent' : 'received', data.file, data.fileType, data.id);
+    }
+});
+
+socket.on("previousMessages", (msgs) => {
+    console.log("📥 Received previous messages:", msgs.length);
+    messagesDiv.innerHTML = ''; // Clear before loading
+    msgs.forEach(msg => {
+        if (!msg.isStory) {
+            addMessage(msg.text, msg.user === currentUser ? 'sent' : 'received', msg.file, msg.fileType, msg.id);
+        }
+    });
+});
+
+socket.on("messageDeleted", (id) => {
+    console.log("🗑️ Message deleted:", id);
+    const msgEl = document.getElementById(`msg-${id}`);
+    if (msgEl) {
+        msgEl.remove();
+    }
 });
 
 // --- NEW: Inject Modern CSS ---
@@ -662,43 +697,20 @@ fileInput.addEventListener('change', function() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-        socket.emit("message", {
+        const messageData = {
             room: currentRoom,
             user: currentUser,
-            text: file.name, // Use filename as fallback text
-            file: e.target.result, // Base64 Data
+            text: file.name,
+            file: e.target.result,
             fileType: file.type
-        });
+        };
+        console.log("📎 Sending file message:", { room: currentRoom, user: currentUser, fileName: file.name, fileType: file.type });
+        socket.emit("message", messageData);
     };
     reader.readAsDataURL(file);
     this.value = "";
 });
 // -------------------------------
-
-socket.on("message", (data) => {
-    console.log("Message received:", data); // Debug log
-    if (data.isStory) {
-        renderStory(data.user, data.file, data.fileType);
-    } else {
-        addMessage(data.text, data.user === currentUser ? 'sent' : 'received', data.file, data.fileType, data.id);
-    }
-});
-
-socket.on("messageDeleted", (id) => {
-    const msgEl = document.getElementById(`msg-${id}`);
-    if (msgEl) {
-        msgEl.remove();
-    }
-});
-
-socket.on("previousMessages", (msgs) => {
-    messagesDiv.innerHTML = ''; // Clear before loading
-    msgs.forEach(msg => {
-        if (!msg.isStory) {
-            addMessage(msg.text, msg.user === currentUser ? 'sent' : 'received', msg.file, msg.fileType, msg.id);
-        }
-    });
-});
 
 async function login() {
     const username = usernameInput.value;
@@ -790,6 +802,14 @@ async function register() {
 
 async function sendMessage() {
     const text = messageInput.value;
+    
+    // Check socket connection
+    if (!socket.connected) {
+        console.error("❌ Socket not connected! Status:", socket.io.engine.readyState);
+        alert("❌ Not connected to chat server. Please refresh the page.");
+        return;
+    }
+    
     if (text.trim() !== "") {
         // AI Chat Bot Integration
         if (text.toLowerCase().startsWith('/ai ')) {
@@ -815,13 +835,20 @@ async function sendMessage() {
         }
 
         // Normal Message: Emit to server
-        console.log("Sending message to room:", currentRoom, "Message:", text);
-        socket.emit("message", {
+        const messageData = {
             room: currentRoom,
             user: currentUser,
             text: text
-        });
+        };
+        
+        console.log("📤 Emitting message:", messageData);
+        console.log("🔗 Socket connected:", socket.connected);
+        console.log("👤 Current user:", currentUser);
+        console.log("🏠 Current room:", currentRoom);
+        
+        socket.emit("message", messageData);
         messageInput.value = "";
+        addMessage(text, 'sent'); // Show message immediately in UI
     }
 }
 

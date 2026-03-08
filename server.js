@@ -95,19 +95,31 @@ app.post("/api/chat", async (req, res) => {
 const roomMessages = {};
 
 io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
+    console.log("✅ User connected:", socket.id);
 
     socket.on("joinRoom", (room) => {
         socket.join(room);
+        console.log(`📍 User ${socket.id} joined room: ${room}`);
         if (roomMessages[room]) {
+            console.log(`📥 Sending ${roomMessages[room].length} previous messages to ${socket.id}`);
             socket.emit("previousMessages", roomMessages[room]);
+        } else {
+            console.log(`📭 No previous messages in room: ${room}`);
         }
     });
 
     socket.on("message", (data) => {
+        console.log("📨 Message received from client:", data);
         const { room } = data;
+        
+        if (!room) {
+            console.error("❌ ERROR: Message received with no room specified!");
+            return;
+        }
+
         // Add ID
         data.id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+        console.log(`✏️ Assigned message ID: ${data.id}`);
 
         if (!roomMessages[room]) roomMessages[room] = [];
         roomMessages[room].push(data);
@@ -115,15 +127,21 @@ io.on("connection", (socket) => {
         // Keep last 50 messages
         if (roomMessages[room].length > 50) roomMessages[room].shift();
 
+        console.log(`📤 Broadcasting message to room "${room}" (${roomMessages[room].length} total messages)`);
         io.to(room).emit("message", data);
     });
 
     socket.on("deleteMessage", (data) => {
         const { room, id } = data;
+        console.log(`🗑️ Deleting message ${id} from room ${room}`);
         if (roomMessages[room]) {
             roomMessages[room] = roomMessages[room].filter(msg => msg.id !== id);
         }
         io.to(room).emit("messageDeleted", id);
+    });
+
+    socket.on("disconnect", () => {
+        console.log("❌ User disconnected:", socket.id);
     });
 });
 

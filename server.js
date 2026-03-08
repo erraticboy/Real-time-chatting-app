@@ -8,6 +8,8 @@ const path = require("path");
 const fs = require("fs");
 const bcrypt = require("bcryptjs");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const mongoose = require("mongoose");
+const Message = require("./models/Message");
 
 const app = express();
 const server = http.createServer(app);
@@ -28,6 +30,15 @@ app.use((req, res, next) => {
     console.log(`[Request] ${req.method} ${req.url}`);
     next();
 });
+
+// --- MONGODB CONNECTION ---
+const mongoUri = process.env.MONGO_URI || "mongodb://localhost:27017/chatapp";
+mongoose.connect(mongoUri, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+})
+.then(() => console.log("✅ Connected to MongoDB"))
+.catch(err => console.error("❌ MongoDB connection error:", err));
 
 // Serve Frontend Static Files
 app.use(express.static(path.join(__dirname, "Frontend")));
@@ -97,18 +108,35 @@ const roomMessages = {};
 io.on("connection", (socket) => {
     console.log("✅ User connected:", socket.id);
 
-    socket.on("joinRoom", (room) => {
+    socket.on("joinRoom", async (room) => {
         socket.join(room);
         console.log(`📍 User ${socket.id} joined room: ${room}`);
-        if (roomMessages[room]) {
-            console.log(`📥 Sending ${roomMessages[room].length} previous messages to ${socket.id}`);
-            socket.emit("previousMessages", roomMessages[room]);
-        } else {
-            console.log(`📭 No previous messages in room: ${room}`);
+        
+        try {
+            // Load last 50 messages from MongoDB
+            const messages = await Message.find({ room })
+                .sort({ timestamp: -1 })
+                .limit(50)
+                .lean()
+                .then(msgs => msgs.reverse()); // Reverse to get chronological order
+            
+            console.log(`📥 Sending ${messages.length} previous messages to ${socket.id}`);
+            if (messages.length > 0) {
+                socket.emit("previousMessages", messages);
+            } else {
+                console.log(`📭 No previous messages in room: ${room}`);
+            }
+        } catch (err) {
+            console.error(`❌ Error loading messages for room ${room}:`, err);
+        }
+        
+        // Update in-memory cache for quick access
+        if (!roomMessages[room]) {
+            roomMessages[room] = [];
         }
     });
 
-    socket.on("message", (data) => {
+    socket.on("message", async (data) => {
         console.log("📨 Message received from client:", data);
         const { room } = data;
         
@@ -121,22 +149,44 @@ io.on("connection", (socket) => {
         data.id = Date.now().toString(36) + Math.random().toString(36).substr(2);
         console.log(`✏️ Assigned message ID: ${data.id}`);
 
+        // Save to memory for quick access
         if (!roomMessages[room]) roomMessages[room] = [];
         roomMessages[room].push(data);
-        
-        // Keep last 50 messages
         if (roomMessages[room].length > 50) roomMessages[room].shift();
+
+        // Save to MongoDB (async, don't block broadcast)
+        try {
+            const newMessage = new Message({
+                ...data,
+                timestamp: new Date()
+            });
+            await newMessage.save();
+            console.log(`💾 Message ${data.id} saved to MongoDB`);
+        } catch (err) {
+            console.error(`❌ Error saving message to MongoDB:`, err);
+        }
 
         console.log(`📤 Broadcasting message to room "${room}" (${roomMessages[room].length} total messages)`);
         io.to(room).emit("message", data);
     });
 
-    socket.on("deleteMessage", (data) => {
+    socket.on("deleteMessage", async (data) => {
         const { room, id } = data;
         console.log(`🗑️ Deleting message ${id} from room ${room}`);
+        
+        // Remove from memory
         if (roomMessages[room]) {
             roomMessages[room] = roomMessages[room].filter(msg => msg.id !== id);
         }
+        
+        // Remove from MongoDB
+        try {
+            await Message.deleteOne({ id });
+            console.log(`💾 Message ${id} deleted from MongoDB`);
+        } catch (err) {
+            console.error(`❌ Error deleting message from MongoDB:`, err);
+        }
+        
         io.to(room).emit("messageDeleted", id);
     });
 

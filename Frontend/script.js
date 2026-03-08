@@ -339,7 +339,7 @@ style.innerHTML = `
     .message.system { background: #1f2c33; color: #8696a0; border: 1px solid #2f3b43; }
     
     /* Input Bar (Dark) */
-    .input-bar { padding: 8px 10px; background: #202c33; border-top: 1px solid #2f3b43; min-height: auto; }
+    .input-bar { padding: 8px 10px; background: #202c33; border-top: 1px solid #2f3b43; min-height: auto; flex-direction: column; }
     #message-input { font-size: 16px; background: #2a3942; color: #e9edef; border: none; padding: 10px 16px; border-radius: 24px; }
     #message-input::placeholder { color: #8696a0; }
     
@@ -623,25 +623,31 @@ inputBar.className = 'input-bar';
 
 // Move elements into inputBar
 messageInput.parentNode.insertBefore(inputBar, messageInput);
-inputBar.appendChild(attachBtn);
-inputBar.appendChild(fileInput);
-inputBar.appendChild(messageInput);
-// --- NEW: Bot Button ---
-const botBtn = document.createElement('button');
-botBtn.innerText = '🤖';
-botBtn.title = "Ask AI";
-botBtn.className = 'icon-btn';
-botBtn.onclick = () => {
-    messageInput.value = "/ai " + messageInput.value;
-    messageInput.focus();
-};
-inputBar.appendChild(botBtn);
 
-const sendBtn = document.createElement('button');
-sendBtn.innerText = '➤';
-sendBtn.className = 'send-btn';
-sendBtn.onclick = sendMessage;
-inputBar.appendChild(sendBtn);
+if (isAndroid) {
+    // Vertical layout for Android like WhatsApp
+    const buttonRow = document.createElement('div');
+    buttonRow.style.display = 'flex';
+    buttonRow.style.gap = '12px';
+    buttonRow.style.justifyContent = 'space-between';
+    buttonRow.style.alignItems = 'center';
+    buttonRow.style.marginTop = '8px';
+    
+    buttonRow.appendChild(attachBtn);
+    buttonRow.appendChild(botBtn);
+    buttonRow.appendChild(sendBtn);
+    
+    inputBar.appendChild(messageInput);
+    inputBar.appendChild(buttonRow);
+} else {
+    // Horizontal layout for desktop
+    inputBar.appendChild(attachBtn);
+    inputBar.appendChild(messageInput);
+    inputBar.appendChild(botBtn);
+    inputBar.appendChild(sendBtn);
+}
+
+inputBar.appendChild(fileInput);
 
 fileInput.addEventListener('change', function() {
     const file = this.files[0];

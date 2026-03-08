@@ -1437,6 +1437,9 @@ fileInput.addEventListener('change', function() {
             fileSize: file.size 
         });
         socket.emit("message", messageData);
+
+        // Render locally immediately
+        addMessage(file.name, 'sent', e.target.result, file.type, null, file.size);
         
         // Remove progress indicator
         setTimeout(() => {
@@ -1491,6 +1494,9 @@ docInput.addEventListener('change', function() {
             fileSize: file.size 
         });
         socket.emit("message", messageData);
+
+        // Render locally immediately
+        addMessage(file.name, 'sent', e.target.result, file.type, null, file.size);
         
         // Remove progress indicator
         setTimeout(() => {
@@ -1536,6 +1542,9 @@ storyInput.addEventListener('change', function() {
             fileType: file.type,
             isStory: true // Flag for story
         });
+
+        // Render story locally immediately
+        renderStory(currentUser, e.target.result, file.type);
         
         // Remove progress indicator
         setTimeout(() => {

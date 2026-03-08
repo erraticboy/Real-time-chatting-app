@@ -20,33 +20,99 @@ if (isAndroid) {
     meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
 }
 
-// --- NEW: Swipe Gestures for Android Sidebar ---
+// --- NEW: Swipe Gestures for Android Sidebar with Advanced Animation ---
 if (isAndroid) {
     let touchStartX = 0;
     let touchEndX = 0;
+    let isAnimating = false;
 
     function handleTouchStart(e) {
         touchStartX = e.changedTouches[0].screenX;
+        isAnimating = false;
     }
 
     function handleTouchEnd(e) {
+        if (isAnimating) return;
         touchEndX = e.changedTouches[0].screenX;
         handleSwipe();
     }
 
     function handleSwipe() {
         const sidebar = document.querySelector('.sidebar');
-        if (touchEndX - touchStartX > 50) {
-            // Swipe right: show sidebar
+        const deltaX = touchEndX - touchStartX;
+
+        if (deltaX > 80) {
+            // Swipe right: show sidebar with smooth animation
+            isAnimating = true;
+            sidebar.style.transform = 'translateX(0)';
+            sidebar.style.opacity = '1';
             sidebar.classList.remove('mobile-hidden');
-        } else if (touchStartX - touchEndX > 50) {
-            // Swipe left: hide sidebar
-            sidebar.classList.add('mobile-hidden');
+            setTimeout(() => { isAnimating = false; }, 400);
+        } else if (deltaX < -80) {
+            // Swipe left: hide sidebar with smooth animation
+            isAnimating = true;
+            sidebar.style.transform = 'translateX(-100%)';
+            sidebar.style.opacity = '0';
+            setTimeout(() => {
+                sidebar.classList.add('mobile-hidden');
+                isAnimating = false;
+            }, 400);
         }
     }
 
-    document.addEventListener('touchstart', handleTouchStart, false);
-    document.addEventListener('touchend', handleTouchEnd, false);
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    // Add haptic feedback simulation for Android
+    function hapticFeedback() {
+        if (navigator.vibrate) {
+            navigator.vibrate(50);
+        }
+    }
+
+    // Add haptic feedback to interactive elements
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('icon-btn') || e.target.classList.contains('pill-btn') || e.target.classList.contains('send-btn')) {
+            hapticFeedback();
+        }
+    });
+
+    // Add advanced particle effect for messages
+    function createParticleEffect(x, y, color) {
+        for (let i = 0; i < 8; i++) {
+            const particle = document.createElement('div');
+            particle.style.cssText = `
+                position: fixed;
+                width: 4px;
+                height: 4px;
+                background: ${color};
+                border-radius: 50%;
+                pointer-events: none;
+                z-index: 9999;
+                left: ${x}px;
+                top: ${y}px;
+                animation: particle-explode 0.8s ease-out forwards;
+            `;
+
+            const angle = (i / 8) * Math.PI * 2;
+            const distance = 50 + Math.random() * 50;
+            particle.style.setProperty('--tx', Math.cos(angle) * distance + 'px');
+            particle.style.setProperty('--ty', Math.sin(angle) * distance + 'px');
+
+            document.body.appendChild(particle);
+            setTimeout(() => particle.remove(), 800);
+        }
+    }
+
+    // Add particle effect to send button
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('send-btn')) {
+            const rect = e.target.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            createParticleEffect(centerX, centerY, '#667eea');
+        }
+    });
 }
 
 // --- Connect to Chat Service (on the same server) ---
@@ -336,67 +402,609 @@ style.innerHTML = `
     }
     .message:hover .delete-msg-btn { display: block; }
 
-    /* Android Mobile Interface */
+    /* Android Mobile Interface - Advanced Futuristic Design */
     ${isAndroid ? `
-    /* Dark Mode Base */
-    body { background: #0b141a; animation: none; overflow: hidden; position: fixed; width: 100%; height: 100%; color: #e9edef; }
-    
-    /* Full Screen Containers */
-    #chat-container { width: 100%; height: 100%; border-radius: 0; margin: 0; position: absolute; top: 0; left: 0; background: #0b141a; border: none; }
-    
-    /* Sidebar (Dark) */
-    .sidebar { width: 100%; height: 100%; position: absolute; z-index: 100; border-right: none; background: #111b21; }
-    .sidebar.mobile-hidden { display: none; }
-    .sidebar-header { background: #202c33; border-bottom: 1px solid #2f3b43; color: #e9edef; }
-    .sidebar-header h3 { color: #e9edef; }
-    .user-list li { background: #111b21; color: #e9edef; border-bottom: 1px solid #202c33; }
-    .user-list li:hover { background: #202c33; }
-    .user-list li.active { background: #2a3942; }
-    .user-profile { background: #202c33; border-top: 1px solid #2f3b43; color: #e9edef; }
-    .user-profile small { color: #8696a0; }
-
-    /* Chat Area (Dark) */
-    .chat-area { width: 100%; height: 100%; display: flex; flex-direction: column; background: #0b141a; }
-    .chat-header { background: #202c33; border-bottom: 1px solid #2f3b43; color: #e9edef; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-    .chat-header .back-btn { color: #e9edef; }
-    
-    /* Messages Background */
-    #messages { 
-        flex: 1; 
-        overflow-y: auto; 
-        -webkit-overflow-scrolling: touch; 
-        background-color: #0b141a; 
-        background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); 
-        background-blend-mode: overlay;
-        opacity: 1;
+    /* Advanced Gradient Background with Animation */
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+        background-size: 400% 400%;
+        animation: advanced-bg-shift 15s ease infinite;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        color: #ffffff;
+        font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
-    /* Message Bubbles (Dark Mode) */
-    .message { font-size: 16px; max-width: 85%; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); color: #e9edef; }
-    .message.sent { background: #005c4b; color: #e9edef; }
-    .message.received { background: #202c33; color: #e9edef; }
-    .message.system { background: #1f2c33; color: #8696a0; border: 1px solid #2f3b43; }
-    
-    /* Input Bar (Dark) */
-    .input-bar { padding: 8px 10px; background: #202c33; border-top: 1px solid #2f3b43; min-height: auto; flex-direction: column; }
-    #message-input { font-size: 16px; background: #2a3942; color: #e9edef; border: none; padding: 10px 16px; border-radius: 24px; }
-    #message-input::placeholder { color: #8696a0; }
-    
-    /* Buttons */
-    .icon-btn { color: #8696a0; }
-    .send-btn { background: #00a884; width: 45px; height: 45px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-    .pill-btn { background: #2a3942; color: #e9edef; border: 1px solid #374248; padding: 12px 20px; font-size: 16px; margin: 5px; }
-    
-    /* Back Button */
-    .back-btn { display: flex !important; margin-right: 10px; font-size: 24px; cursor: pointer; color: #e9edef; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; }
-    .back-btn:active { background-color: #374248; }
+    @keyframes advanced-bg-shift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    /* Glassmorphism Effect */
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Full Screen Futuristic Containers */
+    #chat-container {
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+        margin: 0;
+        position: absolute;
+        top: 0;
+        left: 0;
+        background: transparent;
+        border: none;
+        overflow: hidden;
+    }
+
+    /* Advanced Sidebar with Glass Effect */
+    .sidebar {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        z-index: 100;
+        border-right: none;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(30px);
+        -webkit-backdrop-filter: blur(30px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transform: translateX(0);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .sidebar.mobile-hidden {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+
+    .sidebar-header {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        padding: 20px;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .sidebar-header h3 {
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 24px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        letter-spacing: -0.5px;
+    }
+
+    .user-list li {
+        background: rgba(255, 255, 255, 0.05);
+        color: #ffffff;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 16px 20px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .user-list li::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        transition: left 0.5s;
+    }
+
+    .user-list li:hover::before,
+    .user-list li.active::before {
+        left: 100%;
+    }
+
+    .user-list li:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateX(8px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .user-list li.active {
+        background: rgba(255, 255, 255, 0.15);
+        border-left: 4px solid #00d4ff;
+        box-shadow: 0 0 20px rgba(0, 255, 212, 0.3);
+    }
+
+    .user-profile {
+        background: rgba(255, 255, 255, 0.1);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        padding: 20px;
+        backdrop-filter: blur(20px);
+    }
+
+    .user-profile small {
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Advanced Chat Area */
+    .chat-area {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background: transparent;
+        position: relative;
+    }
+
+    .chat-header {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        padding: 16px 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        border-radius: 0 0 20px 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .chat-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, rgba(0, 212, 255, 0.1), rgba(255, 85, 108, 0.1));
+        z-index: -1;
+    }
+
+    .chat-header .back-btn {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+
+    .chat-header .back-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
+    }
+
+    /* Futuristic Messages Area */
+    #messages {
+        flex: 1;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        background: transparent;
+        padding: 20px;
+        position: relative;
+    }
+
+    #messages::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background:
+            radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.1) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: -1;
+    }
+
+    /* Advanced Message Bubbles */
+    .message {
+        font-size: 16px;
+        max-width: 85%;
+        margin: 8px 0;
+        padding: 12px 16px;
+        border-radius: 18px;
+        position: relative;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        animation: message-appear 0.5s ease-out;
+    }
+
+    @keyframes message-appear {
+        from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .message.sent {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: #ffffff;
+        margin-left: auto;
+        border-bottom-right-radius: 4px;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .message.sent::before {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        right: 12px;
+        width: 0;
+        height: 0;
+        border-left: 8px solid #764ba2;
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+    }
+
+    .message.received {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        margin-right: auto;
+        border-bottom-left-radius: 4px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .message.received::before {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 12px;
+        width: 0;
+        height: 0;
+        border-right: 8px solid rgba(255, 255, 255, 0.1);
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+    }
+
+    .message.system {
+        background: rgba(255, 85, 108, 0.2);
+        color: #ffffff;
+        border: 1px solid rgba(255, 85, 108, 0.3);
+        text-align: center;
+        font-weight: 500;
+        margin: 16px auto;
+        max-width: 80%;
+        box-shadow: 0 4px 20px rgba(255, 85, 108, 0.2);
+    }
+
+    /* Advanced Input Bar with Floating Label */
+    .input-bar {
+        padding: 16px 20px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        min-height: auto;
+        flex-direction: column;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+        animation: slide-up 0.5s ease-out;
+    }
+
+    @keyframes slide-up {
+        from { transform: translateY(100px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .input-bar::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, rgba(0, 212, 255, 0.05), rgba(255, 85, 108, 0.05));
+        z-index: -1;
+    }
+
+    /* Floating Label Input */
+    .input-container {
+        position: relative;
+        margin-bottom: 12px;
+    }
+
+    .input-container label {
+        position: absolute;
+        left: 16px;
+        top: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        transition: all 0.3s ease;
+        pointer-events: none;
+        font-size: 16px;
+        font-weight: 500;
+    }
+
+    .input-container input:focus + label,
+    .input-container input:not(:placeholder-shown) + label {
+        top: -8px;
+        left: 12px;
+        font-size: 12px;
+        color: #00d4ff;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 8px;
+        border-radius: 10px;
+        backdrop-filter: blur(10px);
+    }
+
+    #message-input {
+        font-size: 16px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 12px 16px;
+        border-radius: 25px;
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    #message-input:focus {
+        border-color: #00d4ff;
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateY(-2px);
+    }
+
+    #message-input::placeholder {
+        color: rgba(255, 255, 255, 0.6);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    #message-input:focus::placeholder {
+        opacity: 0.6;
+    }
+
+    /* Advanced Buttons */
+    .icon-btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        font-size: 20px;
+    }
+
+    .icon-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .send-btn {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: none;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .send-btn::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+    }
+
+    .send-btn:hover {
+        transform: scale(1.1) rotate(5deg);
+        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6);
+    }
+
+    .send-btn:active::before {
+        width: 60px;
+        height: 60px;
+    }
+
+    .send-btn:hover::after {
+        content: '🚀';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 16px;
+        opacity: 0;
+        animation: send-emoji 0.5s ease-out;
+    }
+
+    @keyframes send-emoji {
+        0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+        50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    }
+
+    .pill-btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 12px 24px;
+        font-size: 16px;
+        margin: 8px;
+        border-radius: 25px;
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+
+    .pill-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Advanced Back Button */
+    .back-btn {
+        display: flex !important;
+        margin-right: 12px;
+        font-size: 24px;
+        cursor: pointer;
+        color: #ffffff;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .back-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
+    }
 
     /* Room Controls */
-    #room-controls { background: #202c33; border-bottom: 1px solid #2f3b43; }
-    
-    /* Story View */
-    #story-view { background: #111b21; color: #e9edef; }
-    #story-view h2 { color: #e9edef !important; }
+    #room-controls {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 0 0 20px 20px;
+    }
+
+    /* Advanced Story View */
+    #story-view {
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(30px);
+        color: #ffffff;
+        border-radius: 20px;
+        margin: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    #story-view h2 {
+        color: #ffffff !important;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Loading Animation */
+    .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #ffffff;
+        animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Particle Animation */
+    @keyframes particle-explode {
+        0% {
+            opacity: 1;
+            transform: scale(1) translate(0, 0);
+        }
+        100% {
+            opacity: 0;
+            transform: scale(0) translate(var(--tx), var(--ty));
+        }
+    }
+
+    /* Advanced Hover Effects */
+    .message.sent:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .message.received:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Typing Indicator */
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 18px;
+        margin: 8px 0;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        max-width: 85%;
+    }
+
+    .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.6);
+        margin: 0 2px;
+        animation: typing 1.4s infinite;
+    }
+
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing {
+        0%, 60%, 100% { transform: scale(1); opacity: 0.6; }
+        30% { transform: scale(1.2); opacity: 1; }
+    }
+
+    /* Scrollbar Styling */
+    #messages::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #messages::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+    }
+
+    #messages::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 3px;
+    }
+
+    #messages::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.5);
+    }
+
     ` : '.back-btn { display: none; }'}
 `;
 document.head.appendChild(style);
@@ -748,21 +1356,32 @@ inputBar.className = 'input-bar';
 messageInput.parentNode.insertBefore(inputBar, messageInput);
 
 if (isAndroid) {
-    // Vertical layout for Android like WhatsApp
+    // Vertical layout for Android like WhatsApp with advanced design
     const buttonRow = document.createElement('div');
     buttonRow.style.display = 'flex';
     buttonRow.style.gap = '12px';
     buttonRow.style.justifyContent = 'space-between';
     buttonRow.style.alignItems = 'center';
-    buttonRow.style.marginTop = '8px';
-    
+    buttonRow.style.marginTop = '12px';
+
     buttonRow.appendChild(attachBtn);
     buttonRow.appendChild(docBtn);
     buttonRow.appendChild(storyBtn);
     buttonRow.appendChild(botBtn);
     buttonRow.appendChild(sendBtn);
-    
-    inputBar.appendChild(messageInput);
+
+    // Create input container with floating label
+    const inputContainer = document.createElement('div');
+    inputContainer.className = 'input-container';
+
+    const floatingLabel = document.createElement('label');
+    floatingLabel.textContent = 'Type a message...';
+    floatingLabel.setAttribute('for', 'message-input');
+
+    inputContainer.appendChild(messageInput);
+    inputContainer.appendChild(floatingLabel);
+
+    inputBar.appendChild(inputContainer);
     inputBar.appendChild(buttonRow);
 } else {
     // Horizontal layout for desktop
@@ -1186,9 +1805,49 @@ function addMessage(text, type, fileData = null, fileType = null, id = null, fil
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// Allow pressing Enter to send
-messageInput.addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') {
-        sendMessage();
+// Add typing indicator functionality
+let typingTimeout;
+function showTypingIndicator() {
+    clearTimeout(typingTimeout);
+    let typingIndicator = document.querySelector('.typing-indicator');
+    if (!typingIndicator) {
+        typingIndicator = document.createElement('div');
+        typingIndicator.className = 'typing-indicator received';
+        typingIndicator.innerHTML = '<span></span><span></span><span></span>';
+        messagesDiv.appendChild(typingIndicator);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
-});
+
+    typingTimeout = setTimeout(() => {
+        if (typingIndicator && typingIndicator.parentNode) {
+            typingIndicator.parentNode.removeChild(typingIndicator);
+        }
+    }, 1000);
+}
+
+// Show typing indicator when user starts typing
+if (isAndroid) {
+    messageInput.addEventListener('input', function() {
+        if (this.value.length > 0) {
+            socket.emit('typing', { room: currentRoom, user: currentUser });
+        }
+    });
+
+    messageInput.addEventListener('blur', function() {
+        socket.emit('stopTyping', { room: currentRoom, user: currentUser });
+    });
+
+    // Listen for typing events
+    socket.on('userTyping', (data) => {
+        if (data.user !== currentUser) {
+            showTypingIndicator();
+        }
+    });
+
+    socket.on('userStopTyping', (data) => {
+        const typingIndicator = document.querySelector('.typing-indicator');
+        if (typingIndicator) {
+            typingIndicator.remove();
+        }
+    });
+}

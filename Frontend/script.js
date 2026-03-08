@@ -81,8 +81,12 @@ socket.on("message", (data) => {
 socket.on("previousMessages", (msgs) => {
     console.log("📥 Received previous messages:", msgs.length);
     messagesDiv.innerHTML = ''; // Clear before loading
+    storyContainer.innerHTML = ''; // Clear stories before loading
     msgs.forEach(msg => {
-        if (!msg.isStory) {
+        if (msg.isStory) {
+            console.log("📸 Loading previous story...");
+            renderStory(msg.user, msg.file, msg.fileType, true); // true = isPrevious
+        } else {
             addMessage(msg.text, msg.user === currentUser ? 'sent' : 'received', msg.file, msg.fileType, msg.id, msg.fileSize);
         }
     });
@@ -525,30 +529,6 @@ roomControls.appendChild(resetChatBtn);
 // Add Story button to Story Page instead of Chat
 storyView.appendChild(addStoryBtn);
 
-const storyInput = document.createElement('input');
-storyInput.type = 'file';
-storyInput.style.display = 'none';
-storyInput.accept = 'image/*,video/*';
-document.body.appendChild(storyInput);
-
-storyInput.addEventListener('change', function() {
-    const file = this.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        socket.emit("message", {
-            room: currentRoom,
-            user: currentUser,
-            text: "New Story",
-            file: e.target.result,
-            fileType: file.type,
-            isStory: true // Flag for story
-        });
-    };
-    reader.readAsDataURL(file);
-    this.value = "";
-});
-
 function createPrivateRoom() {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     alert(`Your Private Room Code: ${code}\nShare this code with your friend to chat privately!`);
@@ -605,7 +585,7 @@ function switchRoom(room) {
 // Global story storage
 let allStories = [];
 
-function renderStory(user, fileData, fileType) {
+function renderStory(user, fileData, fileType, isPrevious = false) {
     if (!fileType) return; // Safety check
 
     // Add to global stories array
@@ -636,12 +616,14 @@ function renderStory(user, fileData, fileType) {
     };
     storyContainer.appendChild(storyItem);
     
-    // Auto-remove story after 5 minutes
-    setTimeout(() => { 
-        if(storyItem.parentNode) storyItem.parentNode.removeChild(storyItem);
-        // Remove from global array
-        allStories = allStories.filter(s => s !== storyData);
-    }, 300000); // 5 minutes
+    // Auto-remove story after 5 minutes (only for new stories, not previous ones)
+    if (!isPrevious) {
+        setTimeout(() => { 
+            if(storyItem.parentNode) storyItem.parentNode.removeChild(storyItem);
+            // Remove from global array
+            allStories = allStories.filter(s => s !== storyData);
+        }, 300000); // 5 minutes
+    }
 }
 
 function openStoryViewer(currentStory) {
@@ -735,6 +717,11 @@ docInput.type = 'file';
 docInput.style.display = 'none';
 docInput.accept = '.pdf,.doc,.docx,.txt,.zip,.rar,.ppt,.pptx,.xls,.xlsx';
 
+const storyInput = document.createElement('input');
+storyInput.type = 'file';
+storyInput.style.display = 'none';
+storyInput.accept = 'image/*,video/*';
+
 const attachBtn = document.createElement('button');
 attachBtn.innerText = '📎';
 attachBtn.className = 'icon-btn';
@@ -746,6 +733,12 @@ docBtn.innerText = '📄';
 docBtn.className = 'icon-btn';
 docBtn.title = 'Attach document';
 docBtn.onclick = () => docInput.click();
+
+const storyBtn = document.createElement('button');
+storyBtn.innerText = '📸';
+storyBtn.className = 'icon-btn';
+storyBtn.title = 'Add to story';
+storyBtn.onclick = () => storyInput.click();
 
 // Create Input Bar Container
 const inputBar = document.createElement('div');
@@ -765,6 +758,7 @@ if (isAndroid) {
     
     buttonRow.appendChild(attachBtn);
     buttonRow.appendChild(docBtn);
+    buttonRow.appendChild(storyBtn);
     buttonRow.appendChild(botBtn);
     buttonRow.appendChild(sendBtn);
     
@@ -774,6 +768,7 @@ if (isAndroid) {
     // Horizontal layout for desktop
     inputBar.appendChild(attachBtn);
     inputBar.appendChild(docBtn);
+    inputBar.appendChild(storyBtn);
     inputBar.appendChild(messageInput);
     inputBar.appendChild(botBtn);
     inputBar.appendChild(sendBtn);
@@ -781,6 +776,7 @@ if (isAndroid) {
 
 inputBar.appendChild(fileInput);
 inputBar.appendChild(docInput);
+inputBar.appendChild(storyInput);
 
 fileInput.addEventListener('change', function() {
     const file = this.files[0];
@@ -886,6 +882,51 @@ docInput.addEventListener('change', function() {
     };
     reader.onerror = () => {
         alert('Error reading document');
+        if (progressDiv.parentNode) {
+            progressDiv.parentNode.removeChild(progressDiv);
+        }
+    };
+    reader.readAsDataURL(file);
+    this.value = "";
+});
+
+storyInput.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    
+    // 2MB limit for story media
+    if (file.size > 2 * 1024 * 1024) {
+        alert("Story file too large (Max 2MB)");
+        this.value = "";
+        return;
+    }
+
+    // Show upload progress
+    const progressDiv = document.createElement('div');
+    progressDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 8px; z-index: 1001;';
+    progressDiv.innerText = 'Adding to story...';
+    document.body.appendChild(progressDiv);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        socket.emit("message", {
+            room: currentRoom,
+            user: currentUser,
+            text: "New Story",
+            file: e.target.result,
+            fileType: file.type,
+            isStory: true // Flag for story
+        });
+        
+        // Remove progress indicator
+        setTimeout(() => {
+            if (progressDiv.parentNode) {
+                progressDiv.parentNode.removeChild(progressDiv);
+            }
+        }, 1000);
+    };
+    reader.onerror = () => {
+        alert('Error reading story file');
         if (progressDiv.parentNode) {
             progressDiv.parentNode.removeChild(progressDiv);
         }

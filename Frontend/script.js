@@ -135,6 +135,10 @@ socket.on("connect_error", (err) => {
 // Message listener - MUST be set up BEFORE login
 socket.on("message", (data) => {
     console.log("📨 Message received from server:", data);
+    
+    // Prevent duplicate messages for the sender
+    if (data.user === currentUser) return;
+
     if (data.isStory) {
         console.log("📸 Rendering story...");
         renderStory(data.user, data.file, data.fileType);
@@ -1194,7 +1198,7 @@ function switchRoom(room) {
 let allStories = [];
 
 function renderStory(user, fileData, fileType, isPrevious = false) {
-    if (!fileType) return; // Safety check
+    if (!fileType) fileType = 'image/jpeg'; // Safety check with fallback
 
     // Add to global stories array
     const storyData = { user, fileData, fileType, timestamp: Date.now() };
@@ -1348,6 +1352,20 @@ storyBtn.className = 'icon-btn';
 storyBtn.title = 'Add to story';
 storyBtn.onclick = () => storyInput.click();
 
+// --- Fix: Define Missing Buttons ---
+const botBtn = document.createElement('button');
+botBtn.innerText = '🤖';
+botBtn.className = 'icon-btn';
+botBtn.onclick = () => {
+    messageInput.value = '/ai ';
+    messageInput.focus();
+};
+
+const sendBtn = document.createElement('button');
+sendBtn.innerText = '➤';
+sendBtn.className = 'send-btn';
+sendBtn.onclick = sendMessage;
+
 // Create Input Bar Container
 const inputBar = document.createElement('div');
 inputBar.className = 'input-bar';
@@ -1401,13 +1419,10 @@ fileInput.addEventListener('change', function() {
     const file = this.files[0];
     if (!file) return;
     
-    // Different size limits for different file types
-    const isDocument = /\.(pdf|doc|docx|txt|ppt|pptx|xls|xlsx|zip|rar)$/i.test(file.name);
-    const maxSize = isDocument ? 10 * 1024 * 1024 : 2 * 1024 * 1024; // 10MB for docs, 2MB for media
+    const maxSize = 30 * 1024 * 1024; // 30MB limit
     
     if (file.size > maxSize) {
-        const sizeText = isDocument ? "10MB" : "2MB";
-        alert(`File too large (Max ${sizeText})`);
+        alert(`File too large (Max 30MB)`);
         this.value = "";
         return;
     }
@@ -1420,12 +1435,25 @@ fileInput.addEventListener('change', function() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
+        // Fix: Better type detection
+        let type = file.type;
+        if (!type) {
+            const name = file.name.toLowerCase();
+            if (name.match(/\.(jpg|jpeg|png|gif|webp)$/)) type = 'image/jpeg';
+            else if (name.match(/\.(mp4|webm|ogg|mov)$/)) type = 'video/mp4';
+            else if (name.endsWith('.pdf')) type = 'application/pdf';
+            else if (name.match(/\.(doc|docx)$/)) type = 'application/msword';
+            else if (name.endsWith('.txt')) type = 'text/plain';
+            else type = 'application/octet-stream';
+            console.log("Detected file type:", type);
+        }
+
         const messageData = {
             room: currentRoom,
             user: currentUser,
             text: file.name,
             file: e.target.result,
-            fileType: file.type || 'application/octet-stream',
+            fileType: type,
             fileName: file.name,
             fileSize: file.size
         };
@@ -1439,7 +1467,7 @@ fileInput.addEventListener('change', function() {
         socket.emit("message", messageData);
 
         // Render locally immediately
-        addMessage(file.name, 'sent', e.target.result, file.type, null, file.size);
+        addMessage(file.name, 'sent', e.target.result, type, null, file.size);
         
         // Remove progress indicator
         setTimeout(() => {
@@ -1462,9 +1490,9 @@ docInput.addEventListener('change', function() {
     const file = this.files[0];
     if (!file) return;
     
-    // 10MB limit for documents
-    if (file.size > 10 * 1024 * 1024) {
-        alert("Document too large (Max 10MB)");
+    // 30MB limit for documents
+    if (file.size > 30 * 1024 * 1024) {
+        alert("Document too large (Max 30MB)");
         this.value = "";
         return;
     }
@@ -1477,12 +1505,22 @@ docInput.addEventListener('change', function() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
+        // Fix: Better type detection for documents
+        let type = file.type;
+        if (!type) {
+            const name = file.name.toLowerCase();
+            if (name.endsWith('.pdf')) type = 'application/pdf';
+            else if (name.match(/\.(doc|docx)$/)) type = 'application/msword';
+            else type = 'application/octet-stream';
+            console.log("Detected doc type:", type);
+        }
+
         const messageData = {
             room: currentRoom,
             user: currentUser,
             text: file.name,
             file: e.target.result,
-            fileType: file.type || 'application/octet-stream',
+            fileType: type,
             fileName: file.name,
             fileSize: file.size
         };
@@ -1496,9 +1534,8 @@ docInput.addEventListener('change', function() {
         socket.emit("message", messageData);
 
         // Render locally immediately
-        addMessage(file.name, 'sent', e.target.result, file.type, null, file.size);
+        addMessage(file.name, 'sent', e.target.result, type || 'application/octet-stream', null, file.size);
         
-        // Remove progress indicator
         setTimeout(() => {
             if (progressDiv.parentNode) {
                 progressDiv.parentNode.removeChild(progressDiv);
@@ -1519,9 +1556,9 @@ storyInput.addEventListener('change', function() {
     const file = this.files[0];
     if (!file) return;
     
-    // 2MB limit for story media
-    if (file.size > 2 * 1024 * 1024) {
-        alert("Story file too large (Max 2MB)");
+    // 30MB limit for story media
+    if (file.size > 30 * 1024 * 1024) {
+        alert("Story file too large (Max 30MB)");
         this.value = "";
         return;
     }
@@ -1534,17 +1571,29 @@ storyInput.addEventListener('change', function() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
+        // Fix: Better type detection for stories
+        let type = file.type;
+        if (!type) {
+            const name = file.name.toLowerCase();
+            if (name.match(/\.(mp4|webm|ogg|mov)$/)) type = 'video/mp4';
+            else type = 'image/jpeg';
+            console.log("Detected story type:", type);
+        }
+
         socket.emit("message", {
             room: currentRoom,
             user: currentUser,
             text: "New Story",
             file: e.target.result,
-            fileType: file.type,
+            fileType: type,
             isStory: true // Flag for story
         });
 
         // Render story locally immediately
-        renderStory(currentUser, e.target.result, file.type);
+        renderStory(currentUser, e.target.result, type);
+        
+        // Notify user in chat
+        addMessage("You posted a new story! 📸", 'system');
         
         // Remove progress indicator
         setTimeout(() => {
@@ -1713,7 +1762,10 @@ function addMessage(text, type, fileData = null, fileType = null, id = null, fil
     
     if (fileData) {
         const mediaContainer = document.createElement('div');
-        if (fileType && fileType.startsWith('image/')) {
+        
+        // Fix: Ensure fileType is a string
+        if (!fileType) fileType = 'application/octet-stream';
+        if (fileType.startsWith('image/')) {
             const img = document.createElement('img');
             img.src = fileData;
             img.style.maxWidth = '200px';
@@ -1721,14 +1773,14 @@ function addMessage(text, type, fileData = null, fileType = null, id = null, fil
             img.style.cursor = 'pointer';
             img.onclick = () => window.open(fileData, '_blank');
             mediaContainer.appendChild(img);
-        } else if (fileType && fileType.startsWith('video/')) {
+        } else if (fileType.startsWith('video/')) {
             const video = document.createElement('video');
             video.src = fileData;
             video.controls = true;
             video.style.maxWidth = '200px';
             video.style.borderRadius = '8px';
             mediaContainer.appendChild(video);
-        } else if (fileType && (fileType.includes('pdf') || fileType.includes('document') || fileType.includes('text'))) {
+        } else {
             // Document file
             const docContainer = document.createElement('div');
             docContainer.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;';

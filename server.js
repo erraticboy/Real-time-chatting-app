@@ -15,13 +15,14 @@ const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+    maxHttpBufferSize: 40e6 // 40MB to allow for 30MB files + base64 overhead
 });
 
 app.use(cors());
 // preflight CORS handled by app.use(cors()) above
 // app.options call removed to avoid path-to-regexp errors (use wildcard pattern)
-app.use(express.json());
+app.use(express.json({ limit: '40mb' }));
 
 // Debug logging: Show every request in the terminal
 app.use((req, res, next) => {

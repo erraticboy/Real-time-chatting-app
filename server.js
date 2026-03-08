@@ -19,6 +19,8 @@ const io = new Server(server, {
 });
 
 app.use(cors());
+// preflight CORS handled by app.use(cors()) above
+// app.options call removed to avoid path-to-regexp errors (use wildcard pattern)
 app.use(express.json());
 
 // Debug logging: Show every request in the terminal
@@ -30,7 +32,8 @@ app.use((req, res, next) => {
 // Serve Frontend Static Files
 app.use(express.static(path.join(__dirname, "Frontend")));
 
-// --- AUTHENTICATION ---
+/*
+// --- AUTHENTICATION --- (Commented out)
 const usersFilePath = path.join(__dirname, "users.json");
 let users = [];
 
@@ -58,6 +61,7 @@ app.post("/login", async (req, res) => {
     }
     res.json({ message: "Logged in", username });
 });
+*/
 
 // --- AI CHAT ---
 const apiKey = process.env.GEMINI_API_KEY;

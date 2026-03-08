@@ -20,7 +20,7 @@ if (isAndroid) {
     meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
 }
 
-// --- Connect to Chat Service (Port 5000) ---
+// --- Connect to Chat Service (on the same server) ---
 // Moved to top to ensure it's defined before use
 const socket = io({ autoConnect: false });
 socket.on("connect", () => {
@@ -671,7 +671,7 @@ async function login() {
 
     if (username.trim() !== "" && password.trim() !== "") {
         try {
-            // Call Auth Service (Port 5000)
+            // Call Auth Service (on the same server)
             console.log(`Sending login request to: ${window.location.origin}/login`);
             const response = await fetch("/login", {
                 method: "POST",

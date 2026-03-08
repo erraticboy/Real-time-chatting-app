@@ -94,11 +94,11 @@ app.post("/login", async (req, res) => {
     }
 });
 
-const server = app.listen(4000, () => console.log("Auth Service running on 4000"));
+const server = app.listen(5000, () => console.log("Auth Service running on 5000"));
 
 server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-        console.error("❌ Port 4000 is already in use. Please close the other terminal running the Auth Service.");
+        console.error("❌ Port 5000 is already in use. Please close the other terminal running the Auth Service.");
     } else {
         console.error("❌ Server error:", err);
     }

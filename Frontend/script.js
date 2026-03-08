@@ -676,10 +676,11 @@ fileInput.addEventListener('change', function() {
 // -------------------------------
 
 socket.on("message", (data) => {
+    console.log("Message received:", data); // Debug log
     if (data.isStory) {
         renderStory(data.user, data.file, data.fileType);
     } else {
-        addMessage(data.text, data.user === currentUser ? 'sent' : 'received', data.file, data.fileType);
+        addMessage(data.text, data.user === currentUser ? 'sent' : 'received', data.file, data.fileType, data.id);
     }
 });
 
@@ -814,6 +815,7 @@ async function sendMessage() {
         }
 
         // Normal Message: Emit to server
+        console.log("Sending message to room:", currentRoom, "Message:", text);
         socket.emit("message", {
             room: currentRoom,
             user: currentUser,
